@@ -5,6 +5,7 @@
 -- BASIC: Addresses with Homestead Exemption
 -- =============================================================================
 SELECT
+    s.pID,
     s.streetNum || ' ' || COALESCE(s.streetPrefix, '') || ' ' ||
     s.streetName || ' ' || COALESCE(s.streetSuffix, '') AS address,
     s.zip,
@@ -20,6 +21,7 @@ WHERE pr.exemptions LIKE '%HS%'
 -- =============================================================================
 SELECT
     p.pID,
+    i.geoID,
     s.streetNum || ' ' || COALESCE(s.streetPrefix,'') || ' ' ||
     s.streetName || ' ' || COALESCE(s.streetSuffix,'') AS address,
     s.zip,
@@ -29,6 +31,7 @@ SELECT
     pr.imprvMainArea AS sqft
 FROM properties p
 JOIN property_situs s ON p.pID = s.pID AND s.primarySitus = 1
+JOIN property_identification i ON p.pID = i.pID
 JOIN property_profile pr ON p.pID = pr.pID
 JOIN property_legal_description l ON p.pID = l.pID
 WHERE pr.exemptions LIKE '%HS%';
@@ -52,6 +55,7 @@ ORDER BY homestead_count DESC;
 -- SENIOR: Over-65 Homestead Exemptions
 -- =============================================================================
 SELECT
+    s.pID,
     s.streetNum || ' ' || COALESCE(s.streetPrefix,'') || ' ' ||
     s.streetName || ' ' || COALESCE(s.streetSuffix,'') AS address,
     s.zip,
