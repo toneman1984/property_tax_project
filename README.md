@@ -1,6 +1,6 @@
 # Travis County Homestead Exemption — STR Fraud Analysis
 
-Texas law requires homeowners to use a property as their primary residence to claim a homestead exemption. Whole-home short-term rental operators, by definition, do not live there — yet many appear to continue claiming the exemption. This project is a spatial proof-of-concept that identifies Travis County neighborhoods where STR activity and homestead exemption rates are higher than should co-occur if the tax rolls were accurate, flagging candidate areas for parcel-level audit.
+Texas law requires homeowners to use a property as their primary residence to claim a homestead exemption. Whole-home short-term rental operators are unlikely qualify, yet many appear to continue claiming the exemption. This project is a spatial proof-of-concept that identifies Travis County neighborhoods where STR activity and homestead exemption rates are higher than should co-occur if the tax rolls were accurate, flagging candidate areas for parcel-level audit.
 
 ---
 
