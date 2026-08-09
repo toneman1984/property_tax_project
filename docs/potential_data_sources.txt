@@ -1,0 +1,16 @@
+Potentially free / low cost
+- City of Austin Rental Registration — Austin has a rental housing registration ordinance. The city may publish registered
+rental units as open data, which would give you address-level coverage within city limits (not county-wide, but a useful
+subset). Worth checking data.austintexas.gov.
+- HUD datasets — HUD publishes some rental market data through their data portal, though it tends to be aggregated rather
+than parcel-level.
+- Census PUMS / ACS microdata — Can identify renter-occupied units, but no parcel-level addresses.
+
+Mid-tier commercial options
+- Rentcast API — Has property-level rental listing data with tiered pricing. Much cheaper than ATTOM; worth getting a quote
+to compare.
+- PropStream — Property data platform popular with investors, includes rental/occupancy signals. Subscription-based,
+typically a few hundred dollars per month.
+- BatchLeads / BatchData — Similar to PropStream, investor-focused property data with rental indicators.
+
+MLS
