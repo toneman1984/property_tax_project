@@ -6,8 +6,8 @@ directly (see `feedback_learning_approach` memory).
 
 ## Progress Tracker
 
-- [ ] 1. Ingest owner/value data — `scripts/load_owners_to_sqlite.py`
-- [ ] 2. Parcel-level feature engineering — `scripts/build_fraud_features.py`
+- [x] 1. Ingest owner/value data — `scripts/load_owners_to_sqlite.py`
+- [x] 2. Parcel-level feature engineering — `scripts/build_fraud_features.py`
 - [ ] 3. Model training + scoring — `scripts/train_fraud_model.py`
 - [ ] 4. Visualization — `scripts/visualize_fraud_model.py`
 - [ ] 5. Pipeline wiring + docs (`main.py`, `stage4_output_test.py`,
