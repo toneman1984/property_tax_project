@@ -4,13 +4,24 @@
 tests each piece; Claude presents code in segments rather than writing files
 directly (see `feedback_learning_approach` memory).
 
+**Pivot (2026-08-16):** the STR/Airbnb hex-level features described below as
+part of step 3's feature set were tested and removed — they contributed no
+incremental predictive value (raw correlation ≈ 0.001, no change in AUC on
+removal). `imprvActualYearBuilt` was also dropped after EDA found near-zero
+correlation with the label. The model now trains on 6 features, not the 10
+originally planned. Full rationale and evidence: `docs/fraud_model_pivot.md`
+— read that before this doc's Context/Methodology sections below, which
+describe the pre-pivot feature set and are kept for historical reference,
+not current implementation.
+
 ## Progress Tracker
 
 - [x] 1. Ingest owner/value data — `scripts/load_owners_to_sqlite.py`
 - [x] 2. Parcel-level feature engineering — `scripts/build_fraud_features.py`
-- [ ] 3. Model training + scoring — `scripts/train_fraud_model.py`
+- [x] 3. Model training + scoring — `scripts/train_fraud_model.py`
+      (retrained post-pivot on the 6-feature set — see `docs/fraud_model_pivot.md`)
 - [ ] 4. Visualization — `scripts/visualize_fraud_model.py`
-- [ ] 5. Pipeline wiring + docs (`main.py`, `stage4_output_test.py`,
+- [x] 5. Pipeline wiring + docs (`main.py`, `stage4_output_test.py`,
       `environment.yml`, `docs/fraud_model_assumptions.md`, `README.md`)
 
 Update the checkboxes above as steps are completed, so any session can see
@@ -53,9 +64,10 @@ recover a formula we already wrote and add no real ML value). Instead:
 1. Define a **high-confidence proxy positive**: `has_homestead AND is_entity_owner`
    (the deterministic legal red flag).
 2. Train a classifier to predict that proxy label using a **disjoint feature set**
-   that excludes ownership-entity signals (STR/Airbnb density, absentee mailing
-   address, out-of-state owner, property characteristics) — features that are
-   *correlated with* but not *definitional of* the label.
+   that excludes ownership-entity signals (absentee mailing address,
+   out-of-state owner, structural characteristics — STR/Airbnb density was
+   also tried here originally but removed post-pivot, see status note above)
+   — features that are *correlated with* but not *definitional of* the label.
 3. Apply the trained model to **all** homestead parcels, including individually-owned
    ones that never trip the deterministic rule. High-scoring individually-owned
    parcels are the interesting output: parcels that look like the entity-owned
@@ -106,15 +118,27 @@ New script `scripts/build_fraud_features.py`:
   (`imprvActualYearBuilt`, `imprvMainArea`, land size from `extra_fields`,
   `imprvClass`/`imprvCondition`).
 - Output: `data/products/parcel_features.csv` (one row per SFR homestead-eligible
-  parcel, ~250–500k rows).
+  parcel, ~250–500k rows). Note: this CSV retains `airbnb_rate`/
+  `str_permit_rate`/`registration_gap`/`imprvActualYearBuilt` columns even
+  though the trained model no longer selects them as inputs (see status note
+  above) — kept for provenance and so `scripts/eda_fraud_features.py` (added
+  post-pivot) can still check them.
 
 ### 3. Model training + scoring
 
 New script `scripts/train_fraud_model.py`:
 - Proxy label: `has_homestead & is_entity_owner`.
-- Feature set for the model: STR/Airbnb hex features, `mailing_ne_situs`,
-  `out_of_state_owner`, structural characteristics. **Excludes** `is_entity_owner`
-  itself and any owner-name-derived field (leakage prevention — see Context).
+- Before training on any feature set, run `scripts/eda_fraud_features.py`
+  (standalone, added post-pivot) — correlation/dose-response/missingness
+  checks per candidate feature, reviewed before committing to a retrain.
+  Standing discipline going forward, not just a one-off for this pivot.
+- Feature set for the model (current, post-pivot): `mailing_ne_situs`,
+  `out_of_state_owner`, `imprvMainArea`, `land_size_sqft`, `imprvClass`,
+  `imprvCondition` — 6 features. **Excludes** `is_entity_owner` itself and
+  any owner-name-derived field (leakage prevention — see Context), and no
+  longer includes STR/Airbnb hex features or `imprvActualYearBuilt` (both
+  tested and dropped — see `docs/fraud_model_pivot.md` and
+  `docs/fraud_model_assumptions.md` items 5 and 9).
 - Model: `sklearn.ensemble.HistGradientBoostingClassifier` (handles missing
   values natively, no new heavy dependency like xgboost needed).
 - Stratified train/test split, report ROC-AUC / PR-AUC — framed explicitly in
@@ -150,7 +174,7 @@ Extend the Stage 3 pattern with `scripts/visualize_fraud_model.py`:
 - Add `scripts/stage4_output_test.py` (verification script, matching
   `stage1_output_test.py`/`stage2_output_test.py` conventions) and wire
   Stage 4 into `main.py` after Stage 3.
-- Add `scikit-learn` and `shap` to `environment.yml`.
+- Add `scikit-learn` and `shap` to `environment.yml`. Done.
 - New `docs/fraud_model_assumptions.md`: explicit, itemized assumption ledger
   (proxy label ≠ ground truth; revenue estimate simplifies real TX exemption
   stacking rules; STR/Airbnb density is a geographic proxy, not parcel-specific
@@ -165,10 +189,17 @@ Extend the Stage 3 pattern with `scripts/visualize_fraud_model.py`:
   error and `stage4_output_test.py` passes (row counts, no-null-score checks,
   proxy label prevalence sanity check).
 - Manually inspect a handful of top-flagged parcels' feature rows for
-  plausibility (e.g., an entity-owned homestead parcel with high STR density
-  should score high; spot-check a few via the situs address).
-- Confirm SHAP explanations are directionally sensible (e.g., higher
-  `airbnb_rate` and `mailing_ne_situs=1` push risk score up).
+  plausibility (spot-check via the situs address) — stratify samples by
+  dominant SHAP driver across the flagged population, not just top-N by
+  score, so every driver type gets checked (top-N-only missed the fact that
+  most of the pre-pivot flagged pool was STR-driven, which the top-N sample
+  happened not to show).
+- Confirm SHAP explanations are directionally sensible — **caveat**: not
+  reliably true for `mailing_ne_situs`/`out_of_state_owner`, whose SHAP sign
+  is inverted relative to their real relationship with the label and does
+  not resolve cleanly across attribution methods (see
+  `docs/fraud_model_assumptions.md` item 7). Use raw label-rate/lift numbers
+  for directional claims about those two features instead of SHAP sign.
 - Review `fraud_model_summary.json` revenue-at-risk figure for order-of-magnitude
   plausibility against the known ~7,082 active Airbnb / 987 STR-permit gap from
   the Stage 2/3 POC.

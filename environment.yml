@@ -14,3 +14,5 @@ dependencies:
   - geopy
   - h3
   - ijson
+  - scikit-learn
+  - shap
