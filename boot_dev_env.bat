@@ -26,4 +26,6 @@ REM Change to the project directory
 cd /d "%PROJECT_DIR%"
 
 REM Activate the project environment and keep the prompt open
-cmd /k "call conda activate %ENV_NAME% && echo. && echo Environment "%ENV_NAME%" is active. && echo Working directory: %CD%"
+REM PROMPT is overridden after activation so it just shows "(env_name)>"
+REM instead of conda's default "(env_name) C:\full\path\to\project>"
+cmd /k "call conda activate %ENV_NAME% && set PROMPT=(%ENV_NAME%)$G$S && echo. && echo Environment "%ENV_NAME%" is active. && echo Working directory: %CD%"
