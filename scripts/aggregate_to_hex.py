@@ -176,7 +176,8 @@ def merge_all_counts(
 
 def compute_ratios_and_filter(hex_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Compute per-cell ratios and apply inclusion thresholds from study_area_parameters.md:
+    Compute per-cell ratios and apply inclusion thresholds from docs/project_plan.md
+    (Methodology Rationale section):
       - sfr_total >= MIN_SFR_TOTAL (stable ratio denominator)
       - airbnb_entire_home >= MIN_AIRBNB_ABS AND airbnb_rate >= MIN_AIRBNB_RATE
     """

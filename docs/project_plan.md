@@ -110,6 +110,47 @@ are bounded between 0 and 1.
 
 ---
 
+### Methodology Rationale
+
+The choices behind Stage 2's geographic boundary, H3 resolution, and
+inclusion thresholds — merged in from the former `study_area_parameters.md`.
+
+**Geographic boundary.** Travis County is used as a cosmetic reference layer
+only — no analytical clipping is applied. The TCAD property tax export is
+the binding dataset, and it covers Travis County, not the City of Austin
+(whose limits extend into Williamson and Hays counties in places, making it
+a poor clipping boundary when TCAD is the primary source). Rather than clip
+to any administrative boundary, the study area is defined organically by
+the data: H3 cells populate wherever TCAD parcel and Airbnb listing data
+exist, and the threshold filters below naturally concentrate the analysis
+on the urban core. Zip codes were considered and rejected — they straddle
+jurisdictional boundaries awkwardly and aggregate too coarse for
+neighborhood-level ratio computation. Boundary source: US Census Bureau
+TIGERweb REST API, State FIPS 48 (Texas), County FIPS 453 (Travis).
+
+**H3 resolution 8** (~0.7 km² per hexagon) approximates neighborhood scale
+with enough parcels per cell for statistically stable ratios. Resolution 9
+(~0.1 km²) is available as a sensitivity check but risks underpopulated
+cells in lower-density areas.
+
+**Cell inclusion thresholds**, applied after H3 aggregation:
+- `sfr_total >= 20` — a cell with very few SFR parcels produces high-variance
+  ratio estimates (e.g. 1 homestead exemption out of 3 parcels = 33%, which
+  means nothing statistically). Using SFR parcel count as a density proxy
+  avoids pulling a separate Census population dataset.
+- `airbnb_entire_home >= 3` AND `airbnb_rate >= 0.02` — both conditions must
+  hold to include a cell as "STR-active." The absolute floor (≥3) prevents a
+  single listing in a large-parcel cell from producing a trivially small but
+  nonzero rate; the rate floor (2%) sets a minimum density — roughly 1 in 50
+  single-family homes operating as an Airbnb, a meaningfully elevated
+  concentration versus background levels. The 2% threshold is calibrated to
+  Austin's market context: national STR penetration in hot markets runs
+  2–8% of housing stock, and Austin's central neighborhoods sit toward the
+  high end of that range — permissive enough to capture genuinely active
+  STR neighborhoods while excluding incidental STR presence.
+
+---
+
 ### Stage 3 — Visualization and Correlation Analysis
 **Script:** `scripts/visualize.py`
 **Status:** Complete
@@ -160,9 +201,11 @@ property_tax_project/
 
 ---
 
-## Key Assumptions and Sensitivity Checks
+## Sensitivity Checks (planned, not yet run)
 
-- **H3 resolution**: Run at both resolution 8 (neighborhood) and resolution 9 (block cluster) to confirm pattern stability
-- **STR type filter**: Compare results using only Type 2 vs. all STR types to verify the signal is driven by whole-home rentals
-- **Airbnb activity threshold**: Test different minimum review counts as a proxy for "active" listing status
-- **Minimum cell size**: Test sensitivity to the minimum SFR parcel threshold for ratio computation
+- **H3 resolution**: compare resolution 8 vs. resolution 9 to confirm pattern stability
+- **STR type filter**: Type 2 only vs. all permit types, to verify the signal is driven by whole-home rentals
+- **Airbnb activity threshold**: vary minimum review count for the "active" listing definition
+- **Minimum cell size**: test ≥10 and ≥30 SFR parcel floors in addition to the ≥20 baseline used above
+
+None of these have been run yet — they remain a backlog item, not a completed validation step.
