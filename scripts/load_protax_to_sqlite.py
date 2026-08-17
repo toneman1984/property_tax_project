@@ -8,24 +8,25 @@ This script handles a 28GB+ JSON file by:
 4. Using SQLite optimizations for bulk inserts
 
 Usage:
-    python load_protax_to_sqlite.py
+    python -m scripts.load_protax_to_sqlite
 """
 
-import re
 import sqlite3
 import ijson
 import time
 import os
-from pathlib import Path
-from datetime import datetime, date
-from decimal import Decimal
+from datetime import datetime
+
+from scripts.utils import (
+    PROJECT_ROOT, format_time, format_size, convert_value, get_value,
+    optimize_for_bulk_insert, validate_json_file,
+)
 
 
 # ============================================================================
 # Configuration
 # ============================================================================
 
-PROJECT_ROOT = Path(__file__).parent.parent
 DATA_RAW = PROJECT_ROOT / "data" / "sources"
 DATA_PROCESSED = PROJECT_ROOT / "data" / "products"
 JSON_FILE = DATA_RAW / "Travis_protaxExport_20250720.json"
@@ -201,49 +202,6 @@ CREATE INDEX IF NOT EXISTS idx_profile_pID ON property_profile(pID);
 
 
 # ============================================================================
-# Helper Functions
-# ============================================================================
-
-def format_time(seconds):
-    """Format seconds into human readable string."""
-    if seconds < 60:
-        return f"{seconds:.1f}s"
-    elif seconds < 3600:
-        return f"{seconds/60:.1f}m"
-    else:
-        return f"{seconds/3600:.1f}h"
-
-
-def format_size(bytes_size):
-    """Format bytes into human readable string."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if bytes_size < 1024:
-            return f"{bytes_size:.1f}{unit}"
-        bytes_size /= 1024
-    return f"{bytes_size:.1f}TB"
-
-
-def convert_value(value):
-    """Convert Decimal and other unsupported types for SQLite."""
-    if value is None:
-        return None
-    if isinstance(value, Decimal):
-        # Convert to int if it's a whole number, otherwise float
-        return int(value) if value == int(value) else float(value)
-    if isinstance(value, (list, dict)):
-        # Convert complex types to JSON string
-        import json
-        return json.dumps(value)
-    return value
-
-
-def get_value(record, key, default=None):
-    """Safely get a value from a record, converting types as needed."""
-    value = record.get(key, default)
-    return convert_value(value)
-
-
-# ============================================================================
 # Database Functions
 # ============================================================================
 
@@ -273,16 +231,6 @@ def create_indexes(conn):
             cursor.execute(statement)
     conn.commit()
     print("Indexes created.")
-
-
-def optimize_for_bulk_insert(conn):
-    """Configure SQLite for fast bulk inserts."""
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA synchronous = OFF")
-    cursor.execute("PRAGMA journal_mode = MEMORY")
-    cursor.execute("PRAGMA cache_size = -64000")  # 64MB cache
-    cursor.execute("PRAGMA temp_store = MEMORY")
-    conn.commit()
 
 
 def insert_property(cursor, record):
@@ -640,41 +588,6 @@ def load_json_to_sqlite(json_path, db_path, batch_size=BATCH_SIZE):
 # Entry Point
 # ============================================================================
 
-def _validate_json_file():
-    """Check JSON source file before loading. Raises on hard failures, warns on soft ones."""
-
-    # Check 1 — file existence
-    if not JSON_FILE.exists():
-        raise FileNotFoundError(
-            f"Source JSON not found: {JSON_FILE}\n"
-            f"  Run 'python scripts/fetch_tcad.py' to download it."
-        )
-
-    # Check 2 — file size (full export is ~29GB; below 10GB likely a partial download)
-    size_gb = JSON_FILE.stat().st_size / (1024 ** 3)
-    MIN_SIZE_GB = 10.0
-    if size_gb < MIN_SIZE_GB:
-        raise ValueError(
-            f"JSON file is only {size_gb:.1f} GB — expected ~29 GB.\n"
-            f"  This likely indicates an incomplete download.\n"
-            f"  Delete the file and run 'python scripts/fetch_tcad.py' to re-download."
-        )
-    print(f"  JSON file: {JSON_FILE.name} ({size_gb:.1f} GB)")
-
-    # Check 3 — stale file warning (soft, does not block)
-    match = re.search(r'(\d{8})', JSON_FILE.name)
-    if match:
-        try:
-            file_date = datetime.strptime(match.group(1), '%Y%m%d').date()
-            age_days = (date.today() - file_date).days
-            if age_days > 180:
-                print(f"  WARNING: Export is {age_days} days old (dated {file_date}).")
-                print("  A newer TCAD export may be available at traviscad.org.")
-                print("  Update SELECTED_EXPORT in fetch_tcad.py and re-run it to refresh.")
-        except ValueError:
-            pass
-
-
 def run():
     print("=" * 60)
     print("Travis County Property Tax Export - JSON to SQLite Loader")
@@ -682,7 +595,7 @@ def run():
     print("=" * 60)
     print()
 
-    _validate_json_file()
+    validate_json_file(JSON_FILE)
 
     load_json_to_sqlite(JSON_FILE, DB_FILE)
     print("\nSuccess!")
