@@ -1,13 +1,23 @@
-# Stage 4 Pivot: From STR/Airbnb Signal to Homestead Fraud Revenue Estimation
+# Project Pivot History
 
-**Status: decision made, implementation not yet started.** This document
-records where the project stood, the evidence that drove this decision, and
-what it means going forward. It is a rationale record, not an implementation
-plan — the implementation plan follows separately.
+This document records the project's major methodology pivots in order: the
+evidence that drove each decision, and what it means going forward. It is a
+rationale record, not an implementation plan.
+
+**Current status:** Pivot 1 (below) is fully implemented and committed.
+Pivot 2 (below) is a decision in progress — the project's overall shape is
+changing again, more fundamentally than Pivot 1 did, and implementation has
+not started.
 
 ---
 
-## Where the Project Stands
+## Pivot 1 (2026-08-16): STR/Airbnb Signal → Owner-Occupancy Signal
+
+**Status: implemented.** `train_fraud_model.py` was retrained on the
+6-feature set described below, wired into `main.py`, and committed. See
+Pivot 2 below for why this model is now itself being deprioritized.
+
+### Where the Project Stood
 
 **POC (Stages 1–3): complete.** A hex-level (H3 resolution 8) spatial
 correlation analysis across 246 hex cells found `homestead_rate` vs.
@@ -18,20 +28,20 @@ permits. Full detail in `archive/pitch.md` (the original POC pitch, archived
 during the Stage 4 pivot — see "What Changes Going Forward" below) and
 `docs/project_plan.md`.
 
-**Stage 4 (parcel-level ML model): Steps 1–3 of 5 complete.** Owner-level
-data (name, entity type, mailing address, appraised value — present in the
-raw TCAD export but never loaded into the working database) was added to
-build a parcel-level model. `scripts/train_fraud_model.py` trains a
-gradient boosting classifier to predict a legally-grounded proxy label
-(`has_homestead AND is_entity_owner`) from a feature set that deliberately
-excludes ownership-entity signals, so the model can generalize to
-individually-owned parcels the deterministic rule can never catch. Current
-model: 10 features, ROC-AUC 0.730 / PR-AUC 0.103 against a 0.041 no-skill
-baseline.
+**Stage 4 (parcel-level ML model): Steps 1–3 of 5 complete at the time this
+pivot started.** Owner-level data (name, entity type, mailing address,
+appraised value — present in the raw TCAD export but never loaded into the
+working database) was added to build a parcel-level model.
+`scripts/train_fraud_model.py` trains a gradient boosting classifier to
+predict a legally-grounded proxy label (`has_homestead AND
+is_entity_owner`) from a feature set that deliberately excludes
+ownership-entity signals, so the model can generalize to individually-owned
+parcels the deterministic rule can never catch. Model at the time: 10
+features, ROC-AUC 0.730 / PR-AUC 0.103 against a 0.041 no-skill baseline.
 
 ---
 
-## How We Got Here
+### How We Got Here
 
 **The POC's premise.** At the time of the original POC, STR/Airbnb density
 was adopted as the fraud proxy because it was the best available signal
@@ -94,7 +104,7 @@ structural data already explain.
 
 ---
 
-## Why We're Pivoting
+### Why We're Pivoting
 
 Three independent pieces of evidence — near-zero raw correlation, a
 non-monotonic zero/nonzero SHAP pattern with no dose-response relationship,
@@ -121,7 +131,7 @@ estimate) as the central deliverable.
 
 ---
 
-## What This Does *Not* Invalidate
+### What This Does *Not* Invalidate
 
 The POC (Stages 1–3) remains a valid, complete piece of work on its own
 terms — it answered a narrower question (does neighborhood-level STR
@@ -134,33 +144,138 @@ owner-data ingestion made it possible.
 
 ---
 
-## What Changes Going Forward
+### What Changed (implemented)
 
-- **Modeling:** `train_fraud_model.py`'s feature set drops `airbnb_rate`,
-  `str_permit_rate`, and `registration_gap`; the model, full-universe
-  scoring, SHAP explanations, and revenue-at-risk rollup all need to be
-  regenerated on the reduced 7-feature set.
-- **Narrative:** the project's headline result shifts from the POC's
-  correlation coefficient to Stage 4's estimated revenue-at-risk figure.
-  The original `docs/pitch.md` (STR/Airbnb-density-centered) has been
-  archived to `archive/pitch.md`, preserving its history; a new pitch
-  reflecting the Stage 4 finding is still pending a follow-up pass.
-  `docs/project_plan.md` needs no edit — its Stage 0-3 scope and findings
-  remain accurate as written (see "What This Does Not Invalidate" above).
-- **Assumptions ledger:** `docs/fraud_model_assumptions.md`'s existing
-  entries on STR density (item 5) and SHAP prevalence dilution (item 7)
-  will need revision once STR features are removed from the model — item 7
-  in particular was written to explain why STR/mailing features looked
-  underweighted, an issue that mostly disappears once STR features are
-  dropped.
-- **Verification:** spot-checking (per the plan's verification step) should
-  continue against the retrained model — the individually-owned parcels it
-  flags will likely look different once STR-driven cases (58% of the prior
-  flagged pool) are no longer being flagged.
+- **Modeling:** `train_fraud_model.py` retrained on 6 features (also
+  dropped `imprvActualYearBuilt` after EDA found near-zero correlation
+  with the label, on top of the 3 STR features — see
+  `docs/fraud_model_assumptions.md` item 9). Full-universe scoring, SHAP,
+  and revenue-at-risk rollup all regenerated: ROC-AUC 0.717 / PR-AUC 0.098,
+  $357.4M estimated revenue at risk across 11,395 flagged parcels.
+- **Narrative:** `docs/pitch.md` archived to `archive/pitch.md`; a new
+  pitch draft remained pending when Pivot 2 (below) started, and is now
+  further deferred pending Pivot 2's outcome. `docs/project_plan.md`
+  received no edit, as anticipated.
+- **Assumptions ledger:** `docs/fraud_model_assumptions.md` expanded from
+  7 to 9 items — item 5 rewritten as a historical note, item 7 rewritten
+  entirely around a SHAP sign-instability finding (see Pivot 2 below) that
+  turned out to be more consequential than the dilution issue it
+  originally described.
+- **Verification:** stratified spot-checking of the retrained model's
+  flagged population is what surfaced the SHAP sign instability that
+  helped motivate Pivot 2.
 
 ---
 
-## Next Step
+## Pivot 2 (2026-08-16): ML-Centered Stage 4 → EDA-First Descriptive Estimation
 
-An implementation plan for the retrain/rescore/re-document work described
-above. Not started yet.
+**Status: decision made, implementation not started.**
+
+### Where Stage 4 Stood
+
+Pivot 1's retrained model (6 features, ROC-AUC 0.717/PR-AUC 0.098, $357.4M
+headline revenue-at-risk figure) was complete, verified, wired into
+`main.py`, and committed. But one loose end never resolved cleanly:
+`mailing_ne_situs` and `out_of_state_owner` — real, meaningful features
+with a genuine positive correlation to the label — showed a SHAP *sign*
+inverted relative to that true relationship, and switching from
+`tree_path_dependent` to `interventional` attribution didn't fix it
+(it fixed `out_of_state_owner` but made `mailing_ne_situs` worse).
+Two attribution methods disagreeing rather than converging pointed to a
+real instability, not a bug with a clean fix — documented in
+`docs/fraud_model_assumptions.md` item 7.
+
+### What Changed
+
+A pattern repeated across this project's history became hard to ignore:
+`airbnb_rate` (Pivot 1), `imprvActualYearBuilt` (found during Pivot 1's own
+EDA-first check), and now the SHAP sign instability — each time, a
+feature or explanation method that looked reasonable didn't hold up under
+closer scrutiny, and each problem was caught mostly by chance (an
+odd-looking spot-check) rather than by systematic upfront investigation.
+That eroded confidence in "build a model, understand the data as problems
+surface" as the right sequence for this project.
+
+The user made an explicit, larger call: **set aside the ambition to build
+an ML model, for now** — not abandoned, deprioritized. Before committing to
+any statistical methodology, do deep, comprehensive exploratory analysis of
+the source TCAD data — not just the handful of fields used in Stage 4, but
+a full re-exploration of what TCAD's tables actually contain, plus
+potentially new datasets not yet considered. Establish basic summary
+statistics and dollar estimates describing the full "universe" of the
+research *before* deciding how to model anything.
+
+### New Project Structure (going forward)
+
+1. **Foundational descriptive layer.** Comprehensive EDA on TCAD source
+   data (`properties`, `property_profile`, `property_characteristics`,
+   `property_situs`, `property_legal_description`, `property_owner`, and
+   potentially new datasets not yet pulled) — basic summary statistics,
+   testing candidate fraud-signal hypotheses empirically, before any
+   methodology commitment.
+2. **Known-population dollar estimate.** The deterministic entity-owned-
+   homestead case becomes the project's headline number — legally
+   unambiguous, no proxy-label reasoning required — rather than an
+   auxiliary comparison baseline as it was in Stage 4's
+   `composite_red_flag_score`.
+3. **Profile + statistical population expansion.** Characterize the known
+   high-risk population's profile, then use unsupervised techniques —
+   PCA (for dimensionality reduction/multicollinearity, likely needed once
+   the full TCAD re-exploration surfaces many correlated fields), paired
+   with either clustering or Mahalanobis-distance matching (PCA alone
+   doesn't complete a similarity-matching task) — to find individually-
+   owned parcels statistically similar to that profile, expanding the
+   estimate. Mahalanobis-distance matching in particular is methodologically
+   close to propensity-score matching from causal inference, a stronger
+   portfolio fit than PCA alone given the user's stated interest in causal
+   ML. Mixed continuous/categorical data from the full TCAD re-exploration
+   will likely need FAMD or a Gower-distance-based approach rather than
+   vanilla PCA — a decision for when Phase 1 shows the actual candidate
+   feature set, not now.
+4. **ML as a later, optional refinement layer**, sitting on top of 1–3
+   once that foundation is solid — not the project's primary deliverable.
+5. **MLS long-term/short-term rental data — parallel, independent track,
+   not started.** Actual rental listing data would identify non-occupancy
+   from a completely different evidentiary axis than owner/mailing/
+   structural proxies, expanding or corroborating the estimate
+   independently whenever that data becomes accessible. This reinstates an
+   idea from the original POC's deferred next step (see
+   `archive/pitch.md`'s "Case for Investment" section) that got shelved
+   when the STR-density proxy approach took over instead.
+
+### What Gets Set Aside (not deleted)
+
+- H3 hex-aggregation / STR-correlation POC (Stages 2–3:
+  `aggregate_to_hex.py`, `visualize.py`, `hex_ratios.geojson` and related
+  products) — explored, not currently the path.
+- ML Stage 4 apparatus (`build_fraud_features.py`, `train_fraud_model.py`,
+  `eda_fraud_features.py`, `stage4_preflight.py`, `stage4_output_test.py`,
+  and the Stage 4 block in `main.py`) — explored, not currently the path;
+  may resurface as the "ML refinement layer" in a later phase (item 4
+  above).
+
+### What Stays Active
+
+The SQL ingestion/database layer — `load_protax_to_sqlite.py`,
+`load_owners_to_sqlite.py`, `scripts/utils.py`, the SQLite database itself
+— is the substrate for the new Phase 1 EDA work and is not affected by
+this pivot.
+
+### What This Does *Not* Invalidate
+
+Every finding from Pivot 1 remains true, just repositioned: the POC's
+hex-level correlation, the STR-feature ablation results, the
+`imprvActualYearBuilt` interaction lesson, and the SHAP sign-instability
+finding are all still accurate and still inform what *not* to trust going
+forward — including a reminder to re-test the owner/mailing signals in the
+new EDA-first framework rather than assuming they're clean just because
+they survived Pivot 1's scrutiny. The $357.4M ML-derived revenue-at-risk
+figure isn't retracted, but it's no longer the project's headline number —
+that will be the deterministic-population dollar estimate (item 2 above)
+once computed, likely smaller in scope but more directly defensible.
+
+### Next Step
+
+Not yet started: Phase 1 — comprehensive EDA of TCAD source data, scoping
+which existing tables/fields to dig into first and which additional
+datasets to consider pulling.
