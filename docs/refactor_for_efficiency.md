@@ -1,7 +1,14 @@
 # Refactor for Efficiency: Shared Helper Module
 
-**Status:** Planned — not yet implemented. This is a sketch to work from, not
-a commitment to the exact contents below.
+**Status:** Implemented. `scripts/utils.py` exists and both loader scripts
+use it. Scope ended up slightly larger than the sketch below: two more
+byte-identical duplicated functions were found during implementation
+(`_validate_json_file()` and `optimize_for_bulk_insert()`, ~41 combined
+lines) that this doc hadn't caught, plus `PROJECT_ROOT` per the "Open
+Questions" note — all folded in. `convert_value`'s list/dict→JSON branch
+(present only in `load_protax_to_sqlite.py`'s original copy) was kept in
+the shared version as a superset. Kept here as a historical record of the
+original sketch and its actual final scope.
 
 ## Motivation
 
@@ -117,23 +124,33 @@ mechanism that already makes `main.py`'s imports work.
 
 ## Progress Tracker
 
-- [ ] 1. Create `scripts/utils.py` (decide scope: formatting-only, or also
-      `convert_value`/`get_value`)
-- [ ] 2. Update `load_protax_to_sqlite.py` to import from `scripts.utils`,
+- [x] 1. Create `scripts/utils.py` — scope: `format_time`, `format_size`,
+      `convert_value`, `get_value`, `PROJECT_ROOT`, plus two functions not
+      originally identified: `validate_json_file()` (formerly
+      `_validate_json_file()`, parameterized to take a `json_file` arg
+      instead of reading a module global) and `optimize_for_bulk_insert()`
+- [x] 2. Update `load_protax_to_sqlite.py` to import from `scripts.utils`,
       remove its local copies
-- [ ] 3. Update `load_owners_to_sqlite.py` to import from `scripts.utils`,
+- [x] 3. Update `load_owners_to_sqlite.py` to import from `scripts.utils`,
       remove its local copies
-- [ ] 4. Update each script's `Usage:` docstring to the `python -m
-      scripts.X` form
-- [ ] 5. Update `README.md` if it documents single-stage invocation anywhere
+- [x] 4. Update `Usage:` docstrings to the `python -m scripts.X` form —
+      done for these two scripts specifically, since they're the ones whose
+      standalone execution now breaks without it (bare `python scripts/X.py`
+      has no project root on `sys.path`, so `from scripts.utils import ...`
+      fails). Not applied project-wide — most other scripts weren't touched
+      by this change and don't need it; worth a separate look if bare-file
+      invocation conventions matter elsewhere too.
+- [x] 5. Checked `README.md` and other docs for single-stage invocation
+      examples of either script — none exist (only filenames in tables/
+      trees), nothing needed updating.
 
-## Open Questions
+## Resolved Open Questions
 
-- Should `PROJECT_ROOT` resolution also move into `scripts/utils.py`? Since
-  `Path(__file__)` inside `utils.py` would resolve to the same project root
-  regardless of which script imports it, this is technically consolidatable
-  too — deferred here since it's a separate decision from the formatting
-  helpers that prompted this doc.
-- Apply now, or bundle into the Stage 4 pipeline-wiring step (Step 5 in
-  `docs/fraud_model_plan.md`), since that step already touches every
-  script's entry-point pattern?
+- `PROJECT_ROOT` moved into `scripts/utils.py` — confirmed safe:
+  `Path(__file__)` inside `utils.py` resolves to `utils.py`'s own location
+  regardless of which script imports it, and since `utils.py` lives in the
+  same `scripts/` directory as everything else, `.parent.parent` still
+  correctly resolves to the project root for every importer. Verified
+  directly (`lp.PROJECT_ROOT == lo.PROJECT_ROOT == u.PROJECT_ROOT`).
+- Applied standalone, not bundled into the Stage 4 wiring step (that step
+  is already complete — see `docs/fraud_model_plan.md`).
