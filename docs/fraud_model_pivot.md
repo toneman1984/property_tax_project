@@ -5,9 +5,15 @@ evidence that drove each decision, and what it means going forward. It is a
 rationale record, not an implementation plan.
 
 **Current status:** Pivot 1 (below) is fully implemented and committed.
-Pivot 2 (below) is a decision in progress — the project's overall shape is
-changing again, more fundamentally than Pivot 1 did, and implementation has
-not started.
+Pivot 2's "set aside" decision is now physically reflected in the working
+tree as of 2026-08-17: everything this document refers to as set-aside
+(the hex-aggregation/STR-correlation POC and the ML Stage 4 apparatus,
+including `fraud_model_assumptions.md`/`fraud_model_plan.md` themselves)
+has been moved to `archive/` (scripts → `archive/scripts/`, docs →
+`archive/docs/`, outputs → `archive/data/products/` and `archive/images/`).
+File paths below are left as originally written — historically accurate
+for what existed at the time of each pivot, not current locations. Phase 1
+EDA (source data re-exploration) is now underway — see `docs/tcad_eda/`.
 
 ---
 
